@@ -1,0 +1,5 @@
+ - Jeremy Metz
+   Project coordinator
+
+ - Ashley Smith
+   Core developer
