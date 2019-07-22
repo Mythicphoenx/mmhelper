@@ -11,5 +11,5 @@ setup(
     description='Mother Machine Analysis module',
     author='Jeremy Metz',
     author_email='j.metz@exeter.ac.uk',
-    packages=['mmhelper'],
+    packages=['mmhelper', 'mmhelper.detection'],
 )
