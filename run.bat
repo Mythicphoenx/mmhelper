@@ -18,4 +18,4 @@ rem     pause
 rem     exit /b %errorlevel%
 rem )
 
-python -m momanalysis.gui
+python -m mmhelper.gui
