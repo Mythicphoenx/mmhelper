@@ -125,7 +125,7 @@ def get_measurements(data, fluo_data, fullwellimages,
                 well_label=well_label)
             if fluo_data is None:
                 continue
-            timepoint_fluo = [f[0] for f in fluo_data]
+            timepoint_fluo = [f[tpoint] for f in fluo_data]
             fluo_values = [
                 fluorescence_background(
                     fullwells,
