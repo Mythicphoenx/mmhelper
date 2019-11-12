@@ -5,8 +5,6 @@ import sys
 import logging
 import os
 import subprocess
-import mmhelper.main as mom
-from mmhelper.utility import logger
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import (
     QMainWindow,
@@ -27,13 +25,20 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
+import mmhelper.main as mom
+from mmhelper.utility import logger
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 plt.switch_backend('qt5agg')
 
 
-class MainWindow(QMainWindow):
+class MainWindow(QMainWindow):  # pylint: disable=too-many-instance-attributes
+    """
+    Main window, mainly just holds the main widget, and a few
+    extras
+    """
 
-    def __init__(self):
+    def __init__(self, debug=False):
         super().__init__()
 
         self.init_interface()
@@ -43,6 +48,7 @@ class MainWindow(QMainWindow):
         self.output_file = None
         self.currently_selected_file = None
         self.batch = False
+        self.debug = debug
 
     def init_interface(self):
         """Initiates the main widget inside the main window"""
@@ -50,6 +56,7 @@ class MainWindow(QMainWindow):
         self.main_wid = MainWidget(self)
         self.setCentralWidget(self.main_wid)
         self.setGeometry(300, 300, 800, 300)
+        self.setWindowTitle("mmhelper")
         self.show()
 
     def findfile(self):
@@ -62,7 +69,8 @@ class MainWindow(QMainWindow):
         if filename:
             self.statusBar().showMessage("File added: " + filename)
             # self.files.append(fileName)
-            #self.files = fileName if isinstance(fileName, list) else [fileName,]
+            # self.files = (fileName if
+            #              isinstance(fileName, list) else [fileName])
             self.main_wid.startbutton.setEnabled(True)
             self.main_wid.outputlabel.setEnabled(True)
             self.main_wid.brightfield_box.setChecked(True)
@@ -80,7 +88,9 @@ class MainWindow(QMainWindow):
             qApp.quit()
 
     def fluoresc_stack(self, state):
-        """checks tick box to see if a separate fluorescence stack is included"""
+        """
+        Checks tick box to see if a separate fluorescence stack is included
+        """
         self.fluorescence_stack = 1 if state else None
 
     def integr_fluo(self, state):
@@ -91,24 +101,30 @@ class MainWindow(QMainWindow):
     #    pass
 
     def outputcheckbox(self, state):
-        """Check box which determines if a specific output path has been specified"""
+        """
+        Check box which determines if a specific output path has
+        been specified
+        """
         if state == Qt.Checked:
             self.main_wid.output.setEnabled(True)
         else:
             self.main_wid.output.setEnabled(False)
             self.main_wid.output.setText(
-                "Optional: Specify output filename.  N.B. it will be followed by a timestamp")
+                "Optional: Specify output filename. "
+                + "N.B. it will be followed by a timestamp")
 
     def remove_files(self):
         """Function which allows for a selected file to be removed"""
         self.statusBar().showMessage("File removed. Please add a new file")
         for item in self.main_wid.selectedfiles.selectedItems():
-            self.main_wid.selectedfiles.takeItem(self.main_wid.selectedfiles.row(item))
+            self.main_wid.selectedfiles.takeItem(
+                self.main_wid.selectedfiles.row(item))
             filetoberemoved = item.text()
             self.files.remove(filetoberemoved)
-            if len(self.files) < 1:
+            if not self.files:
                 self.main_wid.removeselectedfiles.setEnabled(False)
-                self.statusBar().showMessage("Add a file before starting analysis")
+                self.statusBar().showMessage(
+                    "Add a file before starting analysis")
                 self.main_wid.startbutton.setEnabled(False)
                 self.main_wid.comb_fluorescence.setEnabled(False)
                 self.main_wid.comb_fluorescence.setChecked(False)
@@ -140,7 +156,10 @@ class MainWindow(QMainWindow):
         self.batch = state == Qt.Checked
 
 
-class MainWidget(QWidget):
+class MainWidget(QWidget):  # pylint: disable=too-many-instance-attributes
+    """
+    Main widget to display in the MainWindow
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -148,13 +167,16 @@ class MainWidget(QWidget):
         self.dir_name = []
         self.info_level = "INFO"
         self.setAcceptDrops(True)
-
+        # Unfortunately doesn't seem to be a good way to do this
+        # without accessing logging modules protected attribute
+        # pylint: disable=protected-access
         self.infolevel_dict = logging._levelToName
         self.initiate_widget()
 
-    def initiate_widget(self):
+    def initiate_widget(self):  # pylint: disable=too-many-statements
         """initiates main widget"""
-        self.added_files_text = "write the full file path, manually choose or drag & drop the files"
+        self.added_files_text = ("write the full file path, manually choose "
+                                 + "or drag & drop the files")
 
         self.addfilesbutton = QPushButton("Choose Files")
         self.addfilesbutton.clicked.connect(self.parent().findfile)
@@ -175,7 +197,8 @@ class MainWidget(QWidget):
             lambda: launch_file_explorer(self.dir_name))
 
         self.output = QLineEdit(
-            "Optional: Specify output filename.  N.B. it will be followed by a timestamp")
+            "Optional: Specify output filename. N.B. it will be "
+            + "followed by a timestamp")
         self.output.setEnabled(False)
         self.outputlabel = QCheckBox("Use own name for output File:")
         self.outputlabel.setEnabled(False)
@@ -198,19 +221,22 @@ class MainWidget(QWidget):
         ###
         self.brightfield_box = QRadioButton("Brightfield Only")
         self.brightfield_box.setToolTip(
-            "<b>Default.</b><br>Images are only brightfield and no fluorescence analysis is required.")
+            "<b>Default.</b><br>Images are only brightfield and no "
+            + "fluorescence analysis is required.")
         self.brightfield_box.setChecked(True)
         # self.brightfield_box.toggled.connect(self.parent().brightfield_or_fluorescence)
 
         self.comb_fluorescence = QRadioButton("Combined Fluorescence")
         self.comb_fluorescence.setToolTip(
-            "Select if your stack contains alternating brightfield and fluorescent images")
+            "Select if stack contains alternating brightfield and "
+            + "fluorescent images")
         self.comb_fluorescence.toggled.connect(self.parent().integr_fluo)
         # self.comb_fluorescence.setEnabled(False)
 
         self.seper_fluorescence = QRadioButton("Separate Fluorescence")
         self.seper_fluorescence.setToolTip(
-            "Select if you have a stack of brightfield images and a separate stack of matching fluorescent images")
+            "Select if you have a stack of brightfield images and a"
+            + " separate stack of matching fluorescent images")
         self.seper_fluorescence.toggled.connect(self.parent().fluoresc_stack)
         # self.seper_fluorescence.setEnabled(False)
         ###
@@ -219,7 +245,9 @@ class MainWidget(QWidget):
 
         self.set_debug = QLabel("Select info level")
         self.set_debug.setToolTip(
-            "Select the level of logging information to display:<br><b>Not Set</b> = all information <br><b>Critical</b> = only major errors.<br><br>Default is set to <b>Info</b>.")
+            "Select the level of logging information to display:"
+            + "<br><b>Not Set</b> = all information <br><b>Critical</b>"
+            + "= only major errors.<br><br>Default is set to <b>Info</b>.")
         self.debug_info_level = QComboBox(self)
         self.debug_info_level.addItems(self.infolevel_dict.values())
         self.debug_info_level.activated[str].connect(self.set_info_level)
@@ -267,13 +295,13 @@ class MainWidget(QWidget):
 
         self.thread = AnalysisThread(self.parent(), self)
         self.thread.finished_analysis.connect(self.update_interface)
-        self.thread.log_message.connect(self.addLogMessage)
+        self.thread.log_message.connect(self.add_log_message)
 
     def set_info_level(self, str_):
         """Sets the information level for the user"""
         self.info_level = str_  # self.infolevel_dict[str]
         return self.info_level
-        #print(self.infolevel_dict[str], flush = True)
+        # print(self.infolevel_dict[str], flush = True)
 
     def start_analysis(self):
         """initiates the analysis by running a thread"""
@@ -289,7 +317,8 @@ class MainWidget(QWidget):
             self.parent().statusBar().showMessage(
                 "Run aborted by user. Please add a new file and start again")
             self.output.setText(
-                "Optional: Specify output filename.  N.B. it will be followed by a timestamp")
+                "Optional: Specify output filename. "
+                + "N.B. it will be followed by a timestamp")
             self.filesadded.setText(self.added_files_text)
             self.parent().files = []
             self.parent().update_files_added()
@@ -318,7 +347,7 @@ class MainWidget(QWidget):
             # self.setAcceptDrops(False)
             self.thread.start()
 
-    def addLogMessage(self, msg):
+    def add_log_message(self, msg):
         """takes a message and adds it to the log window"""
         self.logwidget.appendPlainText(msg)
 
@@ -332,36 +361,44 @@ class MainWidget(QWidget):
         self.seeresults.setEnabled(True)
         self.addfilesbutton.setEnabled(True)
         self.parent().statusBar().showMessage(
-            "Analysis Finished. Click to see your files or please add a new file")
+            "Analysis finished. Click to see files or add a new file")
         self.dir_name = dir_name
         self.filesadded.setEnabled(True)
         self.filesadded.setText(
             "Finished. Type new file path, manually select or drag file")
 
     def dragEnterEvent(self, event):
+        # pylint: disable=no-self-use, invalid-name
         """allows files to be drag and dropped on to the interface"""
         if event.mimeData().hasUrls():
             event.accept()
         else:
             event.ignore()
 
-    def dropEvent(self, event):
+    def dropEvent(self, event):  # pylint: disable=invalid-name
+        """
+        Handles items being dropped on the UI
+        """
         for url in event.mimeData().urls():
             if os.path.isfile(url.toLocalFile()) or os.path.isdir(
                     url.toLocalFile()):
+                parent = self.parent()
                 path = url.toLocalFile()
-                #self.parent().files = path if isinstance(path, list) else [path,]
+                # parent.files = path if isinstance(path, list) else [path,]
                 # self.filesadded.setText(path)
-                self.parent().currently_selected_file = path
+                parent.currently_selected_file = path
                 self.startbutton.setEnabled(True)
                 self.outputlabel.setEnabled(True)
-                self.parent().statusBar().showMessage("File added: " + path)
+                parent.statusBar().showMessage("File added: " + path)
                 self.removeselectedfiles.setEnabled(True)
                 self.brightfield_box.setChecked(True)
                 self.parent().update_files_added()
 
 
-class AnalysisThread(QThread):
+class AnalysisThread(QThread):  # pylint: disable=too-few-public-methods
+    """
+    Thread to run the analysis
+    """
 
     finished_analysis = pyqtSignal(str)
     log_message = pyqtSignal(str)
@@ -378,7 +415,8 @@ class AnalysisThread(QThread):
         fluo = self.parent.fluorescence_stack
         fluoresc = self.parent.integrated_fluo
         inputfile = self.parent.files
-        """This changes the format of the GUI messages"""
+        debug = self.parent.debug
+        # This changes the format of the GUI messages
         # self.loghandler.setFormatter(logger.formatter)
         logger.addHandler(self.loghandler)
         # using the numeric values (20 is default = Info)
@@ -390,7 +428,8 @@ class AnalysisThread(QThread):
                 output=output,
                 fluo=fluo,
                 fluoresc=fluoresc,
-                batch=True)
+                batch=True,
+                debug=debug)
             dir_name = inputfile[0]
         else:
             dir_name = mom.run_analysis_pipeline(
@@ -398,13 +437,16 @@ class AnalysisThread(QThread):
                 output=output,
                 fluo=fluo,
                 fluoresc=fluoresc,
+                debug=debug,
             )
         self.finished_analysis.emit(dir_name)
 
 
 def launch_file_explorer(path):
-    # Try cross-platform file-explorer opening...
-    # Courtesy of: http://stackoverflow.com/a/1795849/537098
+    """
+    Try cross-platform file-explorer opening...
+    Courtesy of: http://stackoverflow.com/a/1795849/537098
+    """
     if sys.platform == 'win32':
         subprocess.Popen(['start', path], shell=True)
     elif sys.platform == 'darwin':
@@ -416,7 +458,7 @@ def launch_file_explorer(path):
             # er, think of something else to try
             # xdg-open *should* be supported by recent Gnome, KDE, Xfce
             QMessageBox.critical(
-                self, "Oops", "\n".join(
+                None, "Oops", "\n".join(
                     [
                         "Couldn't launch the file explorer, sorry!"
                         "Manually open %s in your favourite file manager" %
@@ -424,6 +466,9 @@ def launch_file_explorer(path):
 
 
 class QLogHandler(logging.Handler):
+    """
+    Logging handler
+    """
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
@@ -433,16 +478,14 @@ class QLogHandler(logging.Handler):
         self.parent.log_message.emit(msg)
 
 
-def run_gui():
+def run_gui(debug=False):
+    """
+    Creates a Qt QApplication and creates and runs the MainWindow interface
+    """
     app = QApplication(sys.argv)
-    ex = MainWindow()
-    ex.setWindowTitle("mmhelper")
+    ex = MainWindow(debug=debug)
     ex.show()
     app.exec_()
 
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    ex = MainWindow()
-    ex.setWindowTitle("mmhelper")
-    ex.show()
-    app.exec_()
+    run_gui()
