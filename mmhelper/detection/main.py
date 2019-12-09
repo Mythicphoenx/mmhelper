@@ -10,11 +10,12 @@ from mmhelper.detection.wells import (
     detect_wells,
 )
 
+
 def run_detection(image,
-                  brightchannel,
+                  brightchannel,  # pylint: disable=unused-argument
                   debug="",
                   scale_factor=1,
-                 ):
+                  ):
     """
     Runs all of the image detection
 
@@ -25,9 +26,11 @@ def run_detection(image,
     brightchannel : Boolean, optional
         Whether the image has a bright channel or not (default : False)
     scale_factor : Float, optional
-        Used to scale other parameters depending on the image magnification (default : 1)
+        Used to scale other parameters depending on the image
+        magnification (default : 1)
     debug : Boolean, optional
-        WWhether to add debugging outputs, save debug images with this basename (default : False)
+        WWhether to add debugging outputs, save debug images with this
+        basename (default : False)
 
     Returns
     ------
@@ -36,9 +39,11 @@ def run_detection(image,
     bacteria_image : ndarray (2D) of dtype int
         A labelled image showing the detected bacteria
     wellcoords : Dictionary
-        Key is the well number and the value is an array of coordinates for the respective well
+        Key is the well number and the value is an array of coordinates
+        for the respective well
     bacteria : Dictionary
-        The key is the well coordinates and the value is a labelled image of detected bacteria
+        The key is the well coordinates and the value is a labelled image
+        of detected bacteria
 
     """
     debugwell = "%s_well_initial.png" % debug if debug else ""
@@ -52,9 +57,10 @@ def run_detection(image,
         debug=debugwell,
         scale_factor=scale_factor)
     bacteria_image = np.zeros(image.shape, dtype="int16")
-    if len(wells) == 0:
+    if not wells:
         return detected_wellimg, bacteria_image, wellcoords, {}
-    bacteria = run_bacteria_detection(wells, debug=debugbacteria, scale_factor=scale_factor)
+    bacteria = run_bacteria_detection(
+        wells, debug=debugbacteria, scale_factor=scale_factor)
     for key, value in bacteria.items():
         bacteria_image[wellcoords[key]] = value
     return detected_wellimg, bacteria_image, wellcoords, bacteria
