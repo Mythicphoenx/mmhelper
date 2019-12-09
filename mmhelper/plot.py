@@ -1,12 +1,12 @@
-#
-# FILE        : plot.py
-# CREATED     : 22/09/16 13:24:16
-# AUTHOR      : J. Metz <metz.jp@gmail.com>
-# DESCRIPTION : Main plotting functions
-#
+"""plot.py
+
+Utility plotting functions
+
+J. Metz <metz.jp@gmail.com>
+"""
 
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
+from matplotlib import animation
 
 
 def view_stack(data):
@@ -15,25 +15,25 @@ def view_stack(data):
     """
 
     fig = plt.figure()
-    ax = fig.add_subplot(111)
-    im = ax.imshow(data[0], cmap='gray')
-    im.TMAX = len(data)
-    im.tnow = 0
-    im.pause = False
-    title = plt.title("Frame %d" % im.tnow)
+    axis = fig.add_subplot(111)
+    img = axis.imshow(data[0], cmap='gray')
+    img.TMAX = len(data)
+    img.tnow = 0
+    img.pause = False
+    title = plt.title("Frame %d" % img.tnow)
 
     def prevframe():
-        im.tnow = (im.tnow - 1) % im.TMAX
-        im.set_data(data[im.tnow])
-        title.set_text("Frame %d" % im.tnow)
+        img.tnow = (img.tnow - 1) % img.TMAX
+        img.set_data(data[img.tnow])
+        title.set_text("Frame %d" % img.tnow)
         fig.canvas.draw()
 
     def nextframe(stuff=None):
-        if im.pause and (stuff is not None):
+        if img.pause and (stuff is not None):
             return
-        im.tnow = (im.tnow + 1) % im.TMAX
-        im.set_data(data[im.tnow])
-        title.set_text("Frame %d" % im.tnow)
+        img.tnow = (img.tnow + 1) % img.TMAX
+        img.set_data(data[img.tnow])
+        title.set_text("Frame %d" % img.tnow)
         fig.canvas.draw()
 
     def press(event):
@@ -42,12 +42,11 @@ def view_stack(data):
         elif event.key == "right":
             nextframe()
         elif event.key == " ":
-            im.pause ^= True
+            img.pause ^= True
         else:
             print("Unbound key pressed:", event.key)
 
     fig.canvas.mpl_connect('key_press_event', press)
-    ani = animation.FuncAnimation(
+    animation.FuncAnimation(
         fig, nextframe, blit=False, interval=10, repeat=True)
-
     plt.show()
