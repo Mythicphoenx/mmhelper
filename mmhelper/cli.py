@@ -7,7 +7,6 @@ J. Metz <metz.jp@gmail.com>
 """
 import argparse
 import os
-import sys
 import resource
 from mmhelper.main import run_analysis_pipeline
 from mmhelper.main import batch_run
@@ -69,6 +68,9 @@ def get_args(return_parser=False):
     parser.add_argument(
         "-g", "--gui", action="store_true",
         help="Run in GUI mode")
+    parser.add_argument(
+        "--exit-on-error", action="store_true",
+        help="Exit as soon as an error occurs instead of continuing")
     if return_parser:
         return parser.parse_args(), parser
     return parser.parse_args()
@@ -83,6 +85,10 @@ def run_cli():
 
     if args.debug:
         logger.setLevel(logging.DEBUG)
+        import sys
+        from IPython.core import ultratb
+        sys.excepthook = ultratb.FormattedTB(
+            mode='Verbose', color_scheme='Linux', call_pdb=1)
     else:
         logger.setLevel(logging.INFO)
 
@@ -128,6 +134,7 @@ def run_cli():
             batchrun=args.ba,
             scale_factor=args.sf,
             num_fluo=args.nf,
+            exit_on_error=args.exit_on_error,
         )
 
     else:
@@ -147,4 +154,5 @@ def run_cli():
             batchrun=args.ba,
             scale_factor=args.sf,
             num_fluo=args.nf,
+            exit_on_error=args.exit_on_error,
         )
