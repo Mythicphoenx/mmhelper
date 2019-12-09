@@ -3,13 +3,13 @@ Functions for running the main run_analysis_pipeline
 """
 import os
 import traceback
+import numpy as np
 from mmhelper.utility import logger
 import mmhelper.dataio as mio
 import mmhelper.detection as mdet
 import mmhelper.tracking as mtrack
 import mmhelper.measurements as mmeas
 import mmhelper.output as mout
-import numpy as np
 
 
 def batch_run(filenames, *args, **kwargs):
@@ -33,10 +33,12 @@ def batch_run(filenames, *args, **kwargs):
         try:
             run_analysis_pipeline(files, area_num=area, *args, **kwargs)
         except BaseException:
-            logger.error("Failed analysis on area number: %s" % (area))
+            logger.error("Failed analysis on area number: %s", area)
 
 
 def run_analysis_pipeline(
+        # pylint: disable=too-many-statements,too-many-branches,too-many-locals
+        # pylint: disable=too-many-arguments
         filenames,
         output=None,
         tmax=None,
@@ -53,7 +55,7 @@ def run_analysis_pipeline(
         area_num=None,
         scale_factor=1,
         num_fluo=0,
-        **kwargs
+        exit_on_error=False,
         # logger=logger,
 ):
     """Main analysis pipeline
@@ -75,7 +77,7 @@ def run_analysis_pipeline(
     debug     : Boolean
         Whether to add debugging outputs (default : False)
     brightchannel : Boolean
-        Whether to detect channel as a bright instead of dark line (default : False)
+        Detect channel as a bright instead of dark line (default : False)
     loader  : string (options: tifffile, default)
         Which image loader to use (default : default)
     channel : Integer
@@ -86,16 +88,18 @@ def run_analysis_pipeline(
     fluo : List of strings
         List of fluorescence images to load (default : None)
     fluoresc : Boolean
-        Whether image stack contains alternating fluorescence images (default : False)
+        Image stack contains alternating fluorescence images (default : False)
     batchrun : Boolean
         Whether input is a folder containing multiple image areas to
         run concurrently (default : False)
     area_num : Integer
         Area number for dealing with multiple areas (default : None)
     scale_factor : float, optional
-        A factor used to scale detection parameters depending on image magnification
+        Scale factor for detection parameters (default : 1)
     num_fluo : int, optional
         The number of fluorescence channels for each brightfield image
+    exit_on_error : Boolean, optional
+        Exit if any errors are encountered (default : False)
     """
     # See if the input is a folder or files
     filenames = mio.input_folder(filenames)
@@ -107,8 +111,8 @@ def run_analysis_pipeline(
         im_area=area_num,
         debug=debug)
     logger.debug("Starting run_analysis_pipeline")
-    logger.debug("  invert:", invert)
-    logger.debug("  show:", show)
+    logger.debug("  invert: %s", invert)
+    logger.debug("  show: %s", show)
     logger.info("Loading data...")
 
     if fluoresc and not num_fluo:
@@ -129,10 +133,10 @@ def run_analysis_pipeline(
     elif loader == "tifffile":
         data = tifffile.imread(filenames).astype(float)
     else:
-        logger.error("Invalid loader specified [%s]" % str(loader))
-        return
+        logger.error("Invalid loader specified [%s]", loader)
+        return ''
 
-    logger.debug("Initial load:", data.shape)
+    logger.debug("Initial load: %s", data.shape)
     if num_fluo >= 1:
         data, fluo_data = mio.split_fluorescence(data, num_fluo)
 
@@ -147,17 +151,16 @@ def run_analysis_pipeline(
     if channel is not None:
         data = data[:, channel, ...]
     if invert:
-        raise Exception("HANDLE ME BETTER")
         if isinstance(data, (list, tuple)):
             data = [d.max() - d for d in data]
         else:
             data = data.max() - data
-    logger.info("Data loaded:", data.shape, "of type", data.dtype)
+    logger.info("Data loaded: %s of type %s", data.shape, data.dtype)
 
     logger.info("Detecting channels, wells, and bacteria...")
     allwellcoords = []
     allwellimages = []
-    #allridges = []
+    # allridges = []
     allbacteria = []
 
     # ------------------------------
@@ -170,23 +173,29 @@ def run_analysis_pipeline(
                 dirpart, filenamepart = os.path.split(filenames[0])
                 filenamebase = "debug_%0.4d_%s" % (tpoint, filenamepart)
                 debugnow = os.path.join(dirpart, filenamebase)
-                logger.debug("Saving any debugging data to [%s]" % dirpart)
-                logger.debug("  using the prefix [%s]" % filenamebase)
+                logger.debug("Saving any debugging data to [%s]", dirpart)
+                logger.debug("  using the prefix [%s]", filenamebase)
             else:
                 debugnow = ""
-            labelled_wellimg, bacteria_image, wellcoords, bacteria = mdet.run_detection(
-                frame, brightchannel, debug=debugnow, scale_factor=scale_factor)
+            (labelled_wellimg,
+             bacteria_image,
+             wellcoords,
+             bacteria) = mdet.run_detection(
+                 frame, brightchannel,
+                 debug=debugnow, scale_factor=scale_factor)
             mout.output_detection_figures(
                 frame, labelled_wellimg, bacteria_image, tpoint, image_dir)
             allwellcoords.append(wellcoords)
             allbacteria.append(bacteria)
             allwellimages.append(labelled_wellimg)
-            logger.info("Detection complete on frame %s" % (tpoint + 1))
+            logger.info("Detection complete on frame %s", tpoint + 1)
         except BaseException:
             logger.error(
-                "Detection failed for area number: %s timepoint %s" %
-                (area_num, tpoint + 1))
-            logger.error("Exception:%s" % traceback.format_exc())
+                "Detection failed for area number: %s timepoint %s",
+                area_num, tpoint + 1)
+            logger.error("Exception: %s", traceback.format_exc())
+            if exit_on_error:
+                raise
             # dictionary of well ids : coords of well pixels
             allwellcoords.append({})
             # should be dictionary well id : label array of bacteria
@@ -198,8 +207,9 @@ def run_analysis_pipeline(
     # Run tracking on every frame (after the first)
     # ------------------------------
     logger.info("Tracking...")
-    allwellimages, allwellcoords, allbacteria, bacteria_lineage = mtrack.run_tracking(
-        data, allwellimages, allwellcoords, allbacteria)
+    (allwellimages, allwellcoords,
+     allbacteria, bacteria_lineage) = mtrack.run_tracking(
+         data, allwellimages, allwellcoords, allbacteria)
     logger.info("Creating tracking figures...")
     mout.output_tracking_figures(
         data,
@@ -214,7 +224,8 @@ def run_analysis_pipeline(
     # ------------------------------
     logger.info("Measuring...")
     measurements = mmeas.get_measurements(
-        data, fluo_data, allwellimages, allwellcoords, allbacteria, bacteria_lineage)[0]
+        data, fluo_data, allwellimages,
+        allwellcoords, allbacteria, bacteria_lineage)[0]
     mout.final_output(measurements, dir_name)
 
     # for k, v in measurements.items():
@@ -222,7 +233,7 @@ def run_analysis_pipeline(
     #    for t,vv in v.items():
     #        print("  T:",t,"Measurements:", vv)
 
-    #mout.final_output(dir_name, output, fluo, fluoresc, final_timepoint+1)
+    # mout.final_output(dir_name, output, fluo, fluoresc, final_timepoint+1)
     # Generate output images
 
     return dir_name
