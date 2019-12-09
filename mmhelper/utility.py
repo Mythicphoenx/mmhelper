@@ -79,6 +79,7 @@ class ColoredLogger(logging.Logger):
         self.addHandler(console)
         return
 
+    '''
     def makeRecord(self, name, level, fn, lno, msg, args, exc_info,
                    func=None, extra=None, sinfo=None):
         """
@@ -97,6 +98,7 @@ class ColoredLogger(logging.Logger):
                         "Attempt to overwrite %r in LogRecord" % key)
                 rv.__dict__[key] = extra[key]
         return rv
+    '''
 
 
 class MonoLogger(logging.Logger):
@@ -118,6 +120,7 @@ class MonoLogger(logging.Logger):
         self.addHandler(console)
         return
 
+    '''
     def makeRecord(self, name, level, fn, lno, msg, args, exc_info,
                    func=None, extra=None, sinfo=None):
         """
@@ -136,6 +139,7 @@ class MonoLogger(logging.Logger):
                         "Attempt to overwrite %r in LogRecord" % key)
                 rv.__dict__[key] = extra[key]
         return rv
+    '''
 
 
 def supports_color():
