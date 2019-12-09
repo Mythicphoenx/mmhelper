@@ -358,14 +358,22 @@ class MainWidget(QWidget):  # pylint: disable=too-many-instance-attributes
             if hasattr(child, "setEnabled"):
                 child.setEnabled(True)
         self.startbutton.setText('Start Analysis')
-        self.seeresults.setEnabled(True)
         self.addfilesbutton.setEnabled(True)
+        if not dir_name:
+            self.parent().statusBar().showMessage(
+                "Analysis failed :(")
+            self.filesadded.setEnabled(True)
+            self.filesadded.setText(
+                "Type new file path, manually select or drag file")
+            return
+
         self.parent().statusBar().showMessage(
             "Analysis finished. Click to see files or add a new file")
         self.dir_name = dir_name
+        self.seeresults.setEnabled(True)
         self.filesadded.setEnabled(True)
         self.filesadded.setText(
-            "Finished. Type new file path, manually select or drag file")
+            "Type new file path, manually select or drag file")
 
     def dragEnterEvent(self, event):
         # pylint: disable=no-self-use, invalid-name
