@@ -6,20 +6,20 @@ import skimage.filters as skfilt
 import skimage.measure as skmeas
 from skimage.filters import sobel
 from skimage.measure import regionprops
-import mmhelper.skimage_future as skfuture
-from mmhelper.utility import logger
+import matplotlib.pyplot as plt
+import numpy as np
 import scipy.spatial as scispat
 import scipy.ndimage as ndi
 from scipy.interpolate import InterpolatedUnivariateSpline
-import matplotlib.pyplot as plt
-import numpy as np
+import mmhelper.skimage_future as skfuture
+from mmhelper.utility import logger
 
-def detect_wells(
-        image,
-        debug="",
-        phase=False,
-        scale_factor=1,
-    ):
+
+def detect_wells(image,
+                 debug="",
+                 phase=False,
+                 scale_factor=1,
+                 ):
     """
     Detect the wells using a ridge filter, and the classifying
     based on their periodic property
@@ -29,11 +29,13 @@ def detect_wells(
     image : ndarray (2D)
         The image to analyse
     debug   : Boolean, optional
-        Whether to add debugging outputs, save debug images with this basename (default : False)
+        Whether to add debugging outputs, save debug images with
+        this basename (default : False)
     phase : Boolean, optional
         Whether the image is brightfield or phase (default : False)
     scale_factor : float, optional
-        Used to scale other parameters depending on the image magnification (default: 1)
+        Used to scale other parameters depending on the image
+        magnification (default: 1)
 
     Returns
     ------
@@ -42,7 +44,8 @@ def detect_wells(
     detected_wellimg : ndarray (2D) of dtype int
         A labelled image showing the detected bacteria
     wellcoords : Dictionary
-        Key is the well number and the value is an array of coordinates for the respective well
+        Key is the well number and the value is an array of coordinates
+        for the respective well
     """
 
     labelled_wellimg = detect_initial_well_masks(
@@ -51,8 +54,10 @@ def detect_wells(
         debug=debug,
         scale_factor=scale_factor)[0]
     wells, detected_wellimg, wellcoords = extract_well_profiles(
-        image, labelled_wellimg, scale_factor=scale_factor)
+        image, labelled_wellimg, scale_factor=scale_factor,
+        debug=debug)
     return wells, detected_wellimg, wellcoords
+
 
 def detect_initial_well_masks(
         image,
@@ -87,11 +92,13 @@ def detect_initial_well_masks(
     merge_length : int, optional
         number of iterations for binary closing of the wells (default: 5)
     debug   : Boolean, optional
-        Whether to add debugging outputs, save debug images with this basename (default : False)
+        Whether to add debugging outputs, save debug images with
+        this basename (default : False)
     phase : Boolean, optional
         Whether the image is brightfield or phase (default : False)
     scale_factor : float, optional
-        Used to scale other parameters depending on the image magnification (default: 1)
+        Used to scale other parameters depending on the image
+        magnification (default: 1)
 
     Returns
     ------
@@ -104,15 +111,12 @@ def detect_initial_well_masks(
     maxd = (maxd * scale_factor)
     maxperp = (maxperp * scale_factor)
     # multiply the scale range by the square root of the scale factor
-    #scale_range = list(np.array(scale_range) * (scale_factor**(1/2.0)))
+    # scale_range = list(np.array(scale_range) * (scale_factor**(1/2.0)))
     logger.debug("Detecting well with parameters:")
-    logger.debug("  scale range : %s" % str(scale_range))
-    logger.debug("  maxd      : %s" % str(maxd))
-    logger.debug("  mind    : %s" % str(mind))
+    logger.debug("  scale range : %s", scale_range)
+    logger.debug("  maxd      : %s", maxd)
+    logger.debug("  mind    : %s", mind)
     # NOTE: frangi detects DARK ridges
-    #skewness = scistats.skew(image.flat)
-    # if image.max() > 10000: #if really high it is a dark image so probably phase
-    #    phase = True
     if phase is True:
         filt = sobel(
             image,
@@ -129,14 +133,14 @@ def detect_initial_well_masks(
     if debug:
         plt.figure(figsize=(16, 12))
         plt.imshow(filt, cmap='gray')
-        plt.contour(ridges, levels=[0.5], colors=["r"], linewidths=[4, ],
-                    label="Initial threshold")
+        plt.contour(ridges, levels=[0.5], colors=["m"], linewidths=[4, ],
+                    label="Initial threshold", alpha=0.5)
     # Classify using simple measures
     lbl = skmeas.label(ridges, return_num=True)[0]
     lblgood = np.zeros(lbl.shape, dtype='int16')
     smax = 0
     for region in regionprops(lbl):
-        #print(region.label, region.area)
+        # print(region.label, region.area)
         if region.area > min_outline_area:
             smax += 1
             lblgood[lbl == region.label] = smax
@@ -146,7 +150,9 @@ def detect_initial_well_masks(
     best_lbl_final = np.zeros(lbl.shape, dtype='int16')
     for num_int in range(1, 6):  # TODO: review this for loop
         # dilate the labels to ensure the wells "attach" to the channel
-        lblgood2 = ndi.morphology.binary_dilation(lblgood)#, iterations=num_int)
+        # lblgood2 = ndi.morphology.binary_dilation(
+        #     lblgood, iterations=num_int)
+        lblgood2 = ndi.morphology.binary_dilation(lblgood)
         # fill the wells
         lbl_filled = ndi.morphology.binary_fill_holes(lblgood2)
         # extract only the middles
@@ -160,14 +166,16 @@ def detect_initial_well_masks(
         if debug:
             # plt.contour(lblgood, levels=[0.5], colors=["m"], linewidths=[3,],
             #    label="'Good' wells")
-            # plt.contour(lbl_filled, levels=[0.5], colors=["c"], linewidths=[2,],
-            #    label="'Filled' wells")
-            # plt.contour(wells_middle, levels=[0.5], colors=["y"], linewidths=[1,],
-            #    label="Well middles")
+            # plt.contour(
+            #     lbl_filled, levels=[0.5], colors=["c"], linewidths=[2,],
+            #     label="'Filled' wells")
+            # plt.contour(
+            #     wells_middle, levels=[0.5], colors=["y"], linewidths=[1,],
+            #     label="Well middles")
             pass
         # Classify using simple measures
         lbl_wells, n_wells = skmeas.label(wells_middle, return_num=True)
-        #props = skmeas.regionprops(lbl)
+        # props = skmeas.regionprops(lbl)
         bwnew = np.zeros(lbl_wells.shape, "bool")
         ngood = 0
         lbl_final = np.zeros(lbl_wells.shape, dtype='int16')
@@ -189,8 +197,10 @@ def detect_initial_well_masks(
             pperp = [np.dot(vperp, p) for p in pts]
             distperp = np.max(pperp) - np.min(pperp)
             if (dnow > mind) & (dnow < maxd) & (distperp < maxperp):
-                # maxperp is causing some "well loss" on detection - values occassionally
-                # higher than 20 but less than 22 (2 well widths) so will change to 22
+                # maxperp is causing some "well loss" on
+                # detection - values occassionally
+                # higher than 20 but less than 22 (2 well widths) so
+                # will change to 22
                 # May be due to knew detection method so need to revise!!!
                 bwnew[bw_] = True
                 ngood += 1
@@ -208,17 +218,17 @@ def detect_initial_well_masks(
             "Less than 2 wells detected, this function has probably failed")
     lbl_final = best_lbl_final
     if debug:
-        plt.contour(lbl_final, levels=[0.5], colors=["g"], linewidths=[1, ],
+        plt.contour(lbl_final, levels=[0.5], colors=["c"], linewidths=[2, ],
                     labels=["Final wells (after length filtering)", ])
         plt.legend()
         plt.savefig(debug)
         plt.close()
     # Lastly let's see if we can detect anomolous things
-    #propsgood = skmeas.regionprops(lblgood)
-    #good = np.zeros(lblgood.shape)
-    #bad = np.zeros(lblgood.shape)
-    #mus = np.array([p.moments_hu for p in propsgood])
-    #mus2 = mus - mus.mean(axis=0)
+    # propsgood = skmeas.regionprops(lblgood)
+    # good = np.zeros(lblgood.shape)
+    # bad = np.zeros(lblgood.shape)
+    # mus = np.array([p.moments_hu for p in propsgood])
+    # mus2 = mus - mus.mean(axis=0)
     return lbl_final, ridges  # For debugging
 
 
@@ -245,13 +255,17 @@ def extract_well_profiles(
     wellwidth : float, optional
         Width of the wells (default : 11)
     debug   : Boolean, optional
-        Whether to add debugging outputs, save debug images with this basename (default : False)
+        Whether to add debugging outputs, save debug images with
+        this basename (default : False)
     min_well_sep_factor : float, optional
-        Minimum distance between wells as a factor of the well width (default : 2.5)
+        Minimum distance between wells as a factor of the well
+        width (default : 2.5)
     max_well_sep_factor : float, optional
-        Maximum distance between wells as a factor of the well width (default : 6)
+        Maximum distance between wells as a factor of the well
+        width (default : 6)
     scale_factor : float, optional
-        Used to scale other parameters depending on the image magnification (default: 1)
+        Used to scale other parameters depending on the image
+        magnification (default: 1)
 
     Returns
     ------
@@ -260,7 +274,8 @@ def extract_well_profiles(
     wellimage : ndarray (2D) of dtype int
         A labelled image showing the detected bacteria
     coords : Dictionary
-        Key is the well number and the value is an array of coordinates for the respective well
+        Key is the well number and the value is an array of coordinates
+        for the respective well
     """
     wellwidth = (wellwidth * scale_factor)
     # -------------------
@@ -275,9 +290,10 @@ def extract_well_profiles(
         blank_wellimage = np.zeros(image.shape, dtype="uint16")
         return {}, blank_wellimage, {}
 
-    coms, oris, uvec_para, uvec_perp = get_wells_and_unit_vectors(
+    coms, _, uvec_para, uvec_perp = get_wells_and_unit_vectors(
         propsgood,
         debug=debug,
+        debug_image=image if debug else None,
     )
 
     normseps, posperp_sorted = well_spacing_and_seps(
@@ -308,7 +324,7 @@ def extract_well_profiles(
 # Subfunctions for extract_well_profiles
 # ------------------------------
 
-def get_wells_and_unit_vectors(props, debug=False):
+def get_wells_and_unit_vectors(props, debug=False, debug_image=None):
     """
     Determines the perpendicular positions of the wells
     and the min and max coordinates in the parallel direction
@@ -318,7 +334,10 @@ def get_wells_and_unit_vectors(props, debug=False):
     props : list of RegionProperties
         Each item describes one labeled region
     debug : Boolean, optional
-        Whether to add debugging outputs, save debug images with this basename (default : False)
+        Whether to add debugging outputs, save debug images with
+        this basename (default : False)
+    debug_image : Array, optional
+        Image to show when creating debugging plots (default : None)
 
     Returns
     ------
@@ -334,6 +353,11 @@ def get_wells_and_unit_vectors(props, debug=False):
     coms = []
     oris = []
     lens = []
+    if debug:
+        debug_legend = {}
+        plt.figure(figsize=(16, 12))
+        if debug_image is not None:
+            plt.imshow(debug_image, cmap='gray')
 
     for prop in props:
         # Convert to simple line using
@@ -346,27 +370,33 @@ def get_wells_and_unit_vectors(props, debug=False):
         # Find maximal well length (separation of points in binary image)
         dist = scispat.distance.cdist(prop.coords, prop.coords)
         length = dist.max()
-        #x1 = x0_ + math.cos(ori2) * 0.5 * length
-        #y1 = y0_ - math.sin(ori2) * 0.5 * length
-        #x2 = x0_ - math.cos(ori2) * 0.5 * length
-        #y2 = y0_ + math.sin(ori2) * 0.5 * length
         coms.append(np.array((x0_, y0_)))
         oris.append(ori2)
         lens.append(length)
+
+        if debug:
+            x1_ = x0_ + 0.5 * length * math.sin(ori2)
+            y1_ = y0_ + 0.5 * length * math.cos(ori2)
+            debug_legend["initial"] = plt.plot(
+                [x0_, x1_],
+                [y0_, y1_], '-m', lw=4)
+
     coms = np.array(coms)
     oris = np.array(oris)
+    # 2019/12/09 17:05:38 (GMT) JM: Orientation seems to now
+    # come out rotated 90 degrees... simple fix is to apply
+    # additional pi/2 rotation, again constraining to 0-pi
+    oris = (oris + np.pi / 2) % np.pi
     # Get the median well orientation
     ori = np.median(oris)
-    if debug:
-        print("\nWell orientations")
-        print(oris)
-        print("median orientation:", ori)
+    logger.debug("Well orientations (degrees)")
+    logger.debug("%s", 180 * oris / np.pi)
+    logger.debug("median orientation: %s", ori)
     # Generate parallel and perpendicular unit vectors.
     uvec_para = np.array([math.cos(ori), -math.sin(ori)])
     uvec_perp = np.array([math.sin(ori), math.cos(ori)])
-    if debug:
-        print("Parallel vector", uvec_para)
-        print("Perpendicular vector", uvec_perp)
+    logger.debug("Parallel vector: %s", uvec_para)
+    logger.debug("Perpendicular vector: %s", uvec_perp)
     # filter out any positions that shouldn't be here
     pospara = [np.dot(uvec_para, p) for p in coms]
     pospara_med = np.median(pospara)
@@ -374,17 +404,19 @@ def get_wells_and_unit_vectors(props, debug=False):
     pospara_bad = pospara_dif > (0.5 * np.median(lens))
     coms = coms[~pospara_bad]
     oris = oris[~pospara_bad]
-    if debug:
-        print("After filtering bad CoMs")
-        print("Orientations")
-        print(oris)
+    logger.debug("After filtering bad CoMs")
+    logger.debug("Orientations")
+    logger.debug("%s", oris)
     ori = np.median(oris)
     # Generate parallel and perpendicular unit vectors.
     uvec_para = np.array([math.cos(ori), -math.sin(ori)])
     uvec_perp = np.array([math.sin(ori), math.cos(ori)])
+    logger.debug("Parallel vector: %s", uvec_para)
+    logger.debug("Perpendicular vector: %s", uvec_perp)
     if debug:
-        print("Parallel vector", uvec_para)
-        print("Perpendicular vector", uvec_perp)
+        plt.legend(debug_legend.values(), debug_legend.keys())
+        plt.savefig(debug + "extract_well_profiles_debugging.jpg")
+        plt.close()
     return coms, oris, uvec_para, uvec_perp
 
 
@@ -396,7 +428,8 @@ def well_spacing_and_seps(
         max_well_sep_factor=8,
         debug=False):
     """
-    Determines the separations between the wells and makes sure they are consistent
+    Determines the separations between the wells and makes sure
+    they are consistent
 
     Parameters
     ------
@@ -407,11 +440,14 @@ def well_spacing_and_seps(
     wellwidth : float, optional
         Width of the wells (default : 11)
     min_well_sep_factor : float, optional
-        Minimum distance between wells as a factor of the well width (default : 2.5)
+        Minimum distance between wells as a factor of the well
+        width (default : 2.5)
     max_well_sep_factor : float, optional
-        Maximum distance between wells as a factor of the well width (default : 8)
+        Maximum distance between wells as a factor of the well
+        width (default : 8)
     debug : Boolean, optional
-        Whether to add debugging outputs, save debug images with this basename (default : False)
+        Whether to add debugging outputs, save debug images with
+        this basename (default : False)
 
     Returns
     ------
@@ -464,7 +500,7 @@ def well_spacing_and_seps(
         lowerseps = seps2_sorted[0]
 
     # 2017/02/01 13:20:06 (GMT):[JM] Surely this should be median...
-    #lowersep = np.mean(lowerseps)
+    # lowersep = np.mean(lowerseps)
     lowersep = np.median(lowerseps)  # determine median from "realistic values"
     normseps = seps / lowersep  # normalise separations to the median
     normseps_temp = normseps.round()  # round to the nearest whole number
@@ -472,7 +508,9 @@ def well_spacing_and_seps(
     normseps_temp = abs(normseps_temp - normseps)
     wrong_seps = []
     for i, j in enumerate(normseps_temp):
-        if j > 0.1:  # "correct" values will be close to whole numbers when divided by median
+        if j > 0.1:
+            # "correct" values will be close to whole numbers when
+            # divided by median
             # append the index value of "incorrect" values
             wrong_seps.append(i)
     # delete these "incorrect" values
@@ -483,7 +521,7 @@ def well_spacing_and_seps(
 
     if len(seps_sorted) > 5:
         # 2017/02/01 13:21:26 (GMT)[JM] As above, should be median here??
-        #lowernormed = np.mean(normseps_sorted[:5])
+        # lowernormed = np.mean(normseps_sorted[:5])
         lowernormed = np.median(normseps_sorted[:5])
     else:
         lowernormed = normseps_sorted[0]
@@ -494,7 +532,7 @@ def well_spacing_and_seps(
         print("LOWERNORMED")
         print(lowernormed)
 
-    if (lowernormed > 0.95) and (lowernormed < 1.05):
+    if 1.05 > lowernormed > 0.95:
         # We're pretty sure we've got a good estimator
         # here
         pass
@@ -544,7 +582,8 @@ def interpolate_pos_extract_profs(
     image : ndarray (2D)
             The image to analyse
     debug : Boolean, optional
-        Whether to add debugging outputs, save debug images with this basename (default : False)
+        Whether to add debugging outputs, save debug images with this
+        basename (default : False)
 
     Returns
     ------
@@ -553,14 +592,15 @@ def interpolate_pos_extract_profs(
     wellimage : ndarray (2D) of dtype int
         A labelled image showing the detected bacteria
     coords : Dictionary
-        Key is the well number and the value is an array of coordinates for the respective well
+        Key is the well number and the value is an array of coordinates
+        for the respective well
     """
 
     wellimage = np.zeros(image.shape, dtype="uint16")
     numseps = normseps.round()
     # corrected = seps/numseps
     # wellsep = np.mean(corrected)
-    #corrected_normed = corrected / wellsep
+    # corrected_normed = corrected / wellsep
 
     # find the median well separations
     seps = np.diff(posperp_sorted)
@@ -614,7 +654,7 @@ def interpolate_pos_extract_profs(
         print(p00, p01)
         print(p10, p11)
     # Extract profiles
-    #profiles = []
+    # profiles = []
     # for pperp in posperp_interp:
     #
     #    p0 = p00 + pperp * uvec_perp
@@ -630,9 +670,10 @@ def interpolate_pos_extract_profs(
 
     # Lets see the images instead of the profiles
     images = {}
-    #images = []
+    # images = []
     coords = {}
-    # we need to take away "low_extra" (the number of new wells we can extrapolate)
+    # we need to take away "low_extra" (the number of new wells we
+    # can extrapolate)
     # from the minimum label - so it assigns them properly when tracked!
     for numnow, pperp in enumerate(
             posperp_interp, min([p.label for p in props])):
@@ -642,6 +683,7 @@ def interpolate_pos_extract_profs(
         # if debug:
         #    print("Well %d"%numnow)
         #    print("Line coordinates:", p0, p1)
+        # pylint: disable=protected-access
         perp_lines = np.array(skmeas.profile._line_profile_coordinates(
             pos0[[1, 0]], pos1[[1, 0]],
             linewidth=wellwidth))
@@ -660,8 +702,9 @@ def interpolate_pos_extract_profs(
         perp_line_coords = perp_lines.round().astype(int).squeeze()
         for ndim in range(wellimage.ndim):
             perp_line_coords[ndim][perp_line_coords[ndim] < 0] = 0
-            perp_line_coords[ndim][perp_line_coords[ndim] >=
-                                   wellimage.shape[ndim]] = wellimage.shape[ndim] - 1
+            perp_line_coords[ndim][
+                perp_line_coords[ndim] >= wellimage.shape[ndim]
+                ] = wellimage.shape[ndim] - 1
         perp_line_coords = tuple(perp_line_coords.tolist())
         wellimage[perp_line_coords] = numnow
         coords[numnow] = perp_line_coords
@@ -670,6 +713,7 @@ def interpolate_pos_extract_profs(
 # ------------------------------
 # End of extract_well_profiles subfunctions
 # ------------------------------
+
 
 def remove_background(profiles, radius=20, light_background=True):
     """
