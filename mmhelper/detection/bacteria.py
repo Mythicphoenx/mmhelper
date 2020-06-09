@@ -5,7 +5,11 @@ import math
 import numpy as np
 from mmhelper.utility import logger
 import skimage.measure as skmeas
-from skimage.morphology import watershed, medial_axis, skeletonize
+from skimage.morphology import medial_axis, skeletonize
+try:
+    from skimage.segmentation import watershed
+except ModuleNotFoundError:
+    from skimage.morphology import watershed
 from skimage.filters import sobel
 import skimage.filters as skfilt
 from skimage.measure import regionprops
