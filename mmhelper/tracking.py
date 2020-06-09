@@ -68,7 +68,7 @@ def run_tracking(data, allwellimages, allwellcoords, allbacteria, debug=False):
     for tpoint in range(1, len(data)):
         # Frame shift
         frame_shift = frametracker(data[tpoint - 1], data[tpoint], debug=debug)
-        logger.debug("\tFrame tracking registered a transform of:",
+        logger.debug("\tFrame tracking registered a transform of: %s",
                      str(frame_shift))
         # Well tracking - find mappings from the previous image to the current
         # image
