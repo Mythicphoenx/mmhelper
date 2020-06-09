@@ -7,6 +7,7 @@ J. Metz <metz.jp@gmail.com>
 """
 import argparse
 import os
+import sys
 import resource
 from mmhelper.main import run_analysis_pipeline
 from mmhelper.main import batch_run
@@ -85,7 +86,6 @@ def run_cli():
 
     if args.debug:
         logger.setLevel(logging.DEBUG)
-        import sys
         from IPython.core import ultratb
         sys.excepthook = ultratb.FormattedTB(
             mode='Verbose', color_scheme='Linux', call_pdb=1)
