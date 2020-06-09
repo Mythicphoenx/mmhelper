@@ -189,7 +189,10 @@ def run_analysis_pipeline(
             allbacteria.append(bacteria)
             allwellimages.append(labelled_wellimg)
             logger.info("Detection complete on frame %s", tpoint + 1)
-        except BaseException:
+        except KeyboardInterrupt:
+            logger.info("Keyboard interrupt detected, exiting")
+            return
+        except Exception:
             logger.error(
                 "Detection failed for area number: %s timepoint %s",
                 area_num, tpoint + 1)
