@@ -7,7 +7,11 @@ from collections import defaultdict
 import numpy as np
 import scipy.ndimage as ndi
 import skimage.io as skio
-from skimage.external import tifffile
+try:
+    from skimage.external import tifffile
+except ModuleNotFoundError:
+    # Handle new (0.17.x) skimage
+    import tifffile
 from mmhelper.utility import logger
 
 # =========================================================
