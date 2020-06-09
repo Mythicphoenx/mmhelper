@@ -2,6 +2,7 @@
 Determines whether phase or not
 """
 import scipy.stats as scistats
+from mmhelper.utility import logger
 
 def detect_phase(image):
     """
@@ -27,4 +28,6 @@ def detect_phase(image):
     # Pearsons second skewness also didn't work... resorting to
     # empirically determined threshold on skewness :/
 
-    return scistats.skew(image.flat) > 0.25
+    is_phase = scistats.skew(image.flat) > 0.25
+    logger.info("Is image detected as phase? %s", str(is_phase))
+    return is_phase
